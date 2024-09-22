@@ -1,17 +1,18 @@
+// Login.js
 import React from 'react';
-import { auth, provider } from './firebase';
+import { auth, provider, signInWithPopup } from './firebase';
 
 const Login = () => {
   const signInWithGoogle = () => {
-    auth.signInWithPopup(provider)
+    signInWithPopup(auth, provider)
       .catch(error => {
-        console.error("Error signing in with Google: ", error);
+        console.error("שגיאה בכניסה עם חשבון גוגל: ", error);
       });
   };
 
   return (
     <div>
-      <h2>Welcome to Live Video App</h2>
+      <h2>ברוכים הבאים לאפליקציית וידאו חי</h2>
       <button onClick={signInWithGoogle}>היכנס עם חשבון גוגל</button>
     </div>
   );
