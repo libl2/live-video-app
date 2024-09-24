@@ -1,10 +1,15 @@
 import React from 'react';
 
-const LiveVideo = ({ user, onLogout }) => {
+const LiveVideo = ({ user, userData, onLogout }) => {
   return (
     <div>
       <h2>Welcome, {user.displayName}!</h2>
-      {/* Add your live video functionality here */}
+      {userData && (
+        <div>
+          <p>סטטוס: {userData.isApproved ? 'מאושר' : 'לא מאושר'}</p>
+          <p>תשלום: {userData.hasPaid ? 'שילם' : 'לא שילם'}</p>
+        </div>
+      )}
       <button onClick={onLogout}>התנתק</button>
     </div>
   );
