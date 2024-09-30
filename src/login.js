@@ -1,6 +1,7 @@
 // Login.js
 import React from 'react';
-import { auth, provider, signInWithPopup } from './firebase';
+import { auth, provider } from './firebase'; // הסר את signInWithPopup
+import { signInWithPopup } from 'firebase/auth'; // ייבוא ישיר מ-firebase/auth
 
 const Login = () => {
   const signInWithGoogle = () => {

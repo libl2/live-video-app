@@ -1,3 +1,9 @@
+body {
+  direction: rtl;
+  text-align: right;
+  font-family: Arial, sans-serif;
+}
+
 .App {
   text-align: center;
 }
