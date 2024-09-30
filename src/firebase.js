@@ -1,6 +1,11 @@
 import { initializeApp } from 'firebase/app';
+<<<<<<< HEAD
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'; // ייבוא Firestore
+=======
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';  // Firestore
+>>>>>>> 4eeee05fb1167de4337429c6d46e198f4f62768b
 
 // פרטי Firebase שלך
 const firebaseConfig = {
@@ -16,6 +21,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+<<<<<<< HEAD
 const db = getFirestore(app); // אתחול Firestore
 
 export { auth, provider, db }; // ייצוא Firestore (db)
+=======
+const db = getFirestore(app);  // Firestore
+
+export { auth, provider, signInWithPopup, db };
+>>>>>>> 4eeee05fb1167de4337429c6d46e198f4f62768b
