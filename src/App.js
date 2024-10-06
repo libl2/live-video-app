@@ -7,8 +7,9 @@ import { auth, db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
+import { logAction, logRealTimeAction } from './logging'; // ייבוא פונקציות הלוג
 
-function App() {
+function App() {  // כאן הוספתי את ההגדרה של פונקציית App
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null); // מצב לנתוני המשתמש
   const [loading, setLoading] = useState(true);
@@ -18,19 +19,26 @@ function App() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setUser(user);
-        
+
         // משיכת פרטי המשתמש מ-Firestore
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
-          setUserData(userDoc.data()); // שמירת נתוני המשתמש במצב
           const userData = userDoc.data();
+          setUserData(userData);
           setIsAdmin(userData.isAdmin || false);
+
+          // רישום לוג התחברות מוצלחת ב-Firestore
+          await logAction(user.uid, 'Login successful', { email: user.email });
+          await logRealTimeAction(user.uid, 'Logged in and viewing main page');
         }
       } else {
         setUser(null);
         setIsAdmin(false);
+
+        // רישום לוג ניסיון התחברות כושל ב-Firestore
+        await logAction(null, 'Login failed');
       }
       setLoading(false);
     });
@@ -39,14 +47,18 @@ function App() {
   }, []);
 
   const handleLogout = async () => {
-    auth.signOut().then(() => {
+    auth.signOut().then(async () => {
       setUser(null);
       setIsAdmin(false);
-      setUserData(null); // איפוס נתוני המשתמש לאחר יציאה
+
+      // רישום לוג יציאה
+      if (user) {
+        await logAction(user.uid, 'Logout');
+      }
     }).catch((error) => {
       console.error("Error signing out: ", error);
     });
-  };
+  };  
 
   if (loading) {
     return <div>Loading...</div>;
