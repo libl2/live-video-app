@@ -42,3 +42,48 @@ body {
     transform: rotate(360deg);
   }
 }
+
+.dashboard {
+  padding: 20px;
+}
+
+.cards-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 20px;
+}
+
+.card {
+  background-color: #f4f4f4;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f4f4f4;
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* סגנון רספונסיבי למסכים קטנים */
+@media (max-width: 768px) {
+  .cards-container {
+    grid-template-columns: 1fr; /* כרטיסים בשורה אחת במסכים קטנים */
+  }
+}

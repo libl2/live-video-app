@@ -31,7 +31,7 @@ function App() {  // כאן הוספתי את ההגדרה של פונקציית
 
           // רישום לוג התחברות מוצלחת ב-Firestore
           await logAction(user.uid, 'Login successful', { email: user.email });
-          await logRealTimeAction(user.uid, 'Logged in and viewing main page');
+          //await logRealTimeAction(user.uid, 'Logged in and viewing main page');
         }
       } else {
         setUser(null);
@@ -47,17 +47,20 @@ function App() {  // כאן הוספתי את ההגדרה של פונקציית
   }, []);
 
   const handleLogout = async () => {
-    auth.signOut().then(async () => {
-      setUser(null);
-      setIsAdmin(false);
-
-      // רישום לוג יציאה
-      if (user) {
-        await logAction(user.uid, 'Logout');
+    if (user) {
+      try {
+        await logAction(user.uid, 'Logout', { status: 'success' });
+        await logRealTimeAction(user.uid, 'Logged out');
+        await auth.signOut();
+        setUser(null);
+        setIsAdmin(false);
+      } catch (error) {
+        console.error("Error signing out: ", error);
+        
+        // רישום ניסיון יציאה כושל
+        await logAction(user.uid, 'Logout', { status: 'failed', error: error.message });
       }
-    }).catch((error) => {
-      console.error("Error signing out: ", error);
-    });
+    }
   };  
 
   if (loading) {
