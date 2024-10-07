@@ -1,35 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
+  const [lastLogDoc, setLastLogDoc] = useState(null); // כדי לשמור את הרשומה האחרונה לכל batch
   const [realTimeLogs, setRealTimeLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const batchSize = 10; // מספר הרשומות המוצגות בכל פעם
 
-  // שליפת הלוגים מהיסטוריה
-  const fetchLogs = async () => {
-    const querySnapshot = await getDocs(collection(db, 'logs'));
-    const logsData = querySnapshot.docs.map(doc => doc.data());
-    setLogs(logsData);
-  };
+  // שליפת הלוגים מהיסטוריה בזמן אמת
+  useEffect(() => {
+    const logsQuery = query(
+      collection(db, 'logs'),
+      orderBy('timestamp', 'desc'),
+      limit(batchSize)
+    );
+
+    const unsubscribeLogs = onSnapshot(logsQuery, async (querySnapshot) => {
+      const logsData = await Promise.all(
+        querySnapshot.docs.map(async (logDoc) => {
+          const log = logDoc.data();
+          if (log.userId) {
+            const userDocRef = doc(db, 'users', log.userId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              return { ...log, user: userData };
+            }
+          }
+          return log;
+        })
+      );
+
+      setLogs(logsData);
+      setLastLogDoc(querySnapshot.docs[querySnapshot.docs.length - 1]); // שמירת הרשומה האחרונה לפגינציה
+      setLoading(false);
+    });
+
+    return () => unsubscribeLogs();
+  }, []);
 
   // שליפת המעקב בזמן אמת
-  const fetchRealTimeLogs = async () => {
-    const querySnapshot = await getDocs(collection(db, 'onlineLogs'));
-    const realTimeLogsData = querySnapshot.docs.map(doc => doc.data());
-    setRealTimeLogs(realTimeLogsData);
-  };
-
   useEffect(() => {
-    const fetchData = async () => {
-      await fetchLogs();
-      await fetchRealTimeLogs();
-      setLoading(false);
-    };
+    const realTimeQuery = collection(db, 'onlineLogs');
+    const unsubscribeRealTime = onSnapshot(realTimeQuery, async (querySnapshot) => {
+      const realTimeLogsData = await Promise.all(
+        querySnapshot.docs.map(async (logDoc) => {
+          const log = logDoc.data();
+          if (log.userId) {
+            const userDocRef = doc(db, 'users', log.userId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              return { ...log, user: userData };
+            }
+          }
+          return log;
+        })
+      );
+      setRealTimeLogs(realTimeLogsData);
+    });
 
-    fetchData();
-  }, []); // טעינת המידע פעם אחת
+    return () => unsubscribeRealTime();
+  }, []);
+
+  // פונקציה לטעינת רשומות נוספות
+  const loadMoreLogs = async () => {
+    if (lastLogDoc) {
+      setLoadingMore(true);
+      const logsQuery = query(
+        collection(db, 'logs'),
+        orderBy('timestamp', 'desc'),
+        startAfter(lastLogDoc),
+        limit(batchSize)
+      );
+
+      const querySnapshot = await getDocs(logsQuery);
+
+      if (!querySnapshot.empty) {
+        const logsData = await Promise.all(
+          querySnapshot.docs.map(async (logDoc) => {
+            const log = logDoc.data();
+            if (log.userId) {
+              const userDocRef = doc(db, 'users', log.userId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                return { ...log, user: userData };
+              }
+            }
+            return log;
+          })
+        );
+
+        setLogs((prevLogs) => [...prevLogs, ...logsData]);
+        setLastLogDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+      }
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) {
     return <div>Loading Dashboard...</div>;
@@ -56,7 +127,7 @@ const AdminDashboard = () => {
             <thead>
               <tr>
                 <th>תאריך ושעה</th>
-                <th>מזהה משתמש</th>
+                <th>משתמש</th>
                 <th>פעולה</th>
                 <th>פרטים</th>
               </tr>
@@ -65,13 +136,22 @@ const AdminDashboard = () => {
               {logs.map((log, index) => (
                 <tr key={index}>
                   <td>{log.timestamp.toDate().toLocaleString()}</td>
-                  <td>{log.userId}</td>
+                  <td>{log.user ? log.user.displayName : 'משתמש לא מזוהה'}</td>
                   <td>{log.action}</td>
                   <td>{log.details ? JSON.stringify(log.details) : '---'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {logs.length >= batchSize && (
+            <button
+              className="button button-primary"
+              onClick={loadMoreLogs}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'טוען עוד...' : 'הצג עוד רשומות'}
+            </button>
+          )}
         </div>
 
         <div className="card">
@@ -80,7 +160,7 @@ const AdminDashboard = () => {
             <thead>
               <tr>
                 <th>תאריך ושעה</th>
-                <th>מזהה משתמש</th>
+                <th>משתמש</th>
                 <th>פעולה נוכחית</th>
               </tr>
             </thead>
@@ -88,7 +168,7 @@ const AdminDashboard = () => {
               {realTimeLogs.map((log, index) => (
                 <tr key={index}>
                   <td>{log.timestamp.toDate().toLocaleString()}</td>
-                  <td>{log.userId}</td>
+                  <td>{log.user ? log.user.displayName : 'משתמש לא מזוהה'}</td>
                   <td>{log.currentAction}</td>
                 </tr>
               ))}

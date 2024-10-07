@@ -87,3 +87,34 @@ tr:hover {
     grid-template-columns: 1fr; /* כרטיסים בשורה אחת במסכים קטנים */
   }
 }
+
+/* עיצוב כללי לכל הכפתורים באתר */
+.button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  margin: 10px 0; /* מרווח לפני ואחרי הכפתור */
+  transition: background-color 0.3s ease; /* אפקט שינוי צבע */
+}
+
+/* לחצן ראשי - דוגמה לצבע */
+.button-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.button-primary:hover {
+  background-color: #0056b3;
+}
+
+/* לחצן משני - דוגמה לצבע */
+.button-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.button-secondary:hover {
+  background-color: #565e64;
+}
