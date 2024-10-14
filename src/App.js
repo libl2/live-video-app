@@ -3,17 +3,19 @@ import './App.css';
 import Login from './Login';
 import LiveVideo from './LiveVideo';
 import Navbar from './Navbar';
+import UserApproval from './UserApproval'; // ייבוא רכיב אישור משתמש
 import { auth, db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
-import { logAction, logRealTimeAction } from './logging'; // ייבוא פונקציות הלוג
+import { logAction, logRealTimeAction } from './logging';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
-function App() {  // כאן הוספתי את ההגדרה של פונקציית App
+function App() {
   const [user, setUser] = useState(null);
-  const [userData, setUserData] = useState(null); // מצב לנתוני המשתמש
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isApproved, setIsApproved] = useState(null); // מצב עבור isApproved
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -28,16 +30,20 @@ function App() {  // כאן הוספתי את ההגדרה של פונקציית
           const userData = userDoc.data();
           setUserData(userData);
           setIsAdmin(userData.isAdmin || false);
+          setIsApproved(userData.isApproved || false); // שמירת מצב isApproved
 
-          // רישום לוג התחברות מוצלחת ב-Firestore
-          await logAction(user.uid, 'Login successful', { email: user.email });
-          //await logRealTimeAction(user.uid, 'Logged in and viewing main page');
+          if (userData.isApproved) {
+            // רישום לוג התחברות מוצלחת ב-Firestore
+            await logAction(user.uid, 'Login successful', { email: user.email });
+          } else {
+            // רישום לוג שהמשתמש אינו מאושר
+            await logAction(user.uid, 'User not approved');
+          }
         }
       } else {
         setUser(null);
         setIsAdmin(false);
-
-        // רישום לוג ניסיון התחברות כושל ב-Firestore
+        setIsApproved(false);
         await logAction(null, 'Login failed');
       }
       setLoading(false);
@@ -54,14 +60,13 @@ function App() {  // כאן הוספתי את ההגדרה של פונקציית
         await auth.signOut();
         setUser(null);
         setIsAdmin(false);
+        setIsApproved(false);
       } catch (error) {
         console.error("Error signing out: ", error);
-        
-        // רישום ניסיון יציאה כושל
         await logAction(user.uid, 'Logout', { status: 'failed', error: error.message });
       }
     }
-  };  
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -73,10 +78,31 @@ function App() {  // כאן הוספתי את ההגדרה של פונקציית
         {user && <Navbar user={user} isAdmin={isAdmin} onLogout={handleLogout} />}
         
         <Routes>
-          <Route path="/" element={!user ? <Login /> : <LiveVideo user={user} userData={userData} onLogout={handleLogout} />} />
-          <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <div>Access Denied</div>} />
+          <Route
+            path="/"
+            element={
+              !user ? (
+                <Login />
+              ) : !isApproved ? (
+                <UserApproval />
+              ) : (
+                <LiveVideo user={user} userData={userData} onLogout={handleLogout} />
+              )
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              user && isAdmin ? (
+                <AdminDashboard />
+              ) : !user ? (
+                <Navigate to="/" replace />
+              ) : (
+                <div>Access Denied</div>
+              )
+            }
+          />
         </Routes>
-      
       </div>
     </Router>
   );

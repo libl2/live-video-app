@@ -135,7 +135,9 @@ const AdminDashboard = () => {
             <tbody>
               {logs.map((log, index) => (
                 <tr key={index}>
-                  <td>{log.timestamp.toDate().toLocaleString()}</td>
+                  <td>
+                    {log.timestamp && log.timestamp.toDate ? log.timestamp.toDate().toLocaleString() : 'No timestamp available'}
+                  </td>
                   <td>{log.user ? log.user.displayName : 'משתמש לא מזוהה'}</td>
                   <td>{log.action}</td>
                   <td>{log.details ? JSON.stringify(log.details) : '---'}</td>
