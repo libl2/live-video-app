@@ -5,9 +5,9 @@ import LiveVideo from './LiveVideo';
 import Navbar from './Navbar';
 import UserApproval from './UserApproval'; // ייבוא רכיב אישור משתמש
 import { auth, db } from './firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import AdminDashboard from './AdminDashboard';
-import { logAction, logRealTimeAction } from './logging';
+import { logAction, logRealTimeAction } from './utils/logging';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
 function App() {
@@ -18,26 +18,27 @@ function App() {
   const [isApproved, setIsApproved] = useState(null); // מצב עבור isApproved
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        setUser(user);
-
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      if (authUser) {
+        setUser(authUser);
+  
+        // יצירת משתמש חדש אם לא קיים
+        await createUserIfNotExists(authUser);
+  
         // משיכת פרטי המשתמש מ-Firestore
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, 'users', authUser.uid);
         const userDoc = await getDoc(userDocRef);
-
+  
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserData(userData);
           setIsAdmin(userData.isAdmin || false);
-          setIsApproved(userData.isApproved || false); // שמירת מצב isApproved
-
+          setIsApproved(userData.isApproved || false);
+  
           if (userData.isApproved) {
-            // רישום לוג התחברות מוצלחת ב-Firestore
-            await logAction(user.uid, 'Login successful', { email: user.email });
+            await logAction(authUser.uid, 'Login successful', { email: authUser.email });
           } else {
-            // רישום לוג שהמשתמש אינו מאושר
-            await logAction(user.uid, 'User not approved');
+            await logAction(authUser.uid, 'User not approved');
           }
         }
       } else {
@@ -48,13 +49,31 @@ function App() {
       }
       setLoading(false);
     });
-
+  
     return () => unsubscribe();
   }, []);
-
+  
+  const createUserIfNotExists = async (user) => {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+  
+    if (!userDoc.exists()) {
+      // רישום משתמש חדש במצב חסום (isApproved: false)
+      await setDoc(userDocRef, {
+        displayName: user.displayName || 'Unknown',
+        email: user.email,
+        isAdmin: false,
+        isApproved: false,
+        createdAt: serverTimestamp(),
+      });
+      console.log('New user registered and blocked:', user.uid);
+    }
+  };
+  
   const handleLogout = async () => {
     if (user) {
       try {
+        // רישום לוג יציאה לפני ביצוע פעולת ה-signOut
         await logAction(user.uid, 'Logout', { status: 'success' });
         await logRealTimeAction(user.uid, 'Logged out');
         await auth.signOut();
@@ -63,10 +82,11 @@ function App() {
         setIsApproved(false);
       } catch (error) {
         console.error("Error signing out: ", error);
+        // רישום לוג אם יש שגיאה ביציאה
         await logAction(user.uid, 'Logout', { status: 'failed', error: error.message });
       }
     }
-  };
+  };  
 
   if (loading) {
     return <div>Loading...</div>;
@@ -81,7 +101,9 @@ function App() {
           <Route
             path="/"
             element={
-              !user ? (
+              loading ? (
+                <div>Loading...</div>
+              ) : !user ? (
                 <Login />
               ) : !isApproved ? (
                 <UserApproval />

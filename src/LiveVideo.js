@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { logAction, logRealTimeAction } from './logging'; // ייבוא פונקציות הלוג
+import { logAction, logRealTimeAction } from './utils/logging'; // ייבוא פונקציות הלוג
 
 const LiveVideo = ({ user, userData, onLogout }) => {
   useEffect(() => {

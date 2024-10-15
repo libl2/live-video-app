@@ -1,5 +1,5 @@
 // src/utils/logging.js
-import { db } from './firebase'; // וודא שאתה מייבא את ה-db מ-firebase.js
+import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export const logAction = async (userId, action, details = {}) => {
@@ -8,7 +8,7 @@ export const logAction = async (userId, action, details = {}) => {
       userId: userId || 'Unknown',
       action: action,
       details: details,
-      timestamp: serverTimestamp(), // שמירת הזמן הנוכחי של השרת
+      timestamp: serverTimestamp(),
     });
     console.log(`Action logged: ${action} | User ID: ${userId}`, details);
   } catch (error) {
@@ -16,11 +16,13 @@ export const logAction = async (userId, action, details = {}) => {
   }
 };
 
-export const logRealTimeAction = async (userId, action) => {
+// לא חייב לשנות את הפונקציה השנייה, אבל ניתן לעשות זאת אם צריך יותר פרטים
+export const logRealTimeAction = async (userId, action, details = {}) => {
   try {
     await addDoc(collection(db, 'realTimeLogs'), {
       userId: userId || 'Unknown',
       action: action,
+      details: details,
       timestamp: serverTimestamp(),
     });
     console.log(`Real-time action logged: ${action} | User ID: ${userId}`);
