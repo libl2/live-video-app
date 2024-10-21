@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import useLogger from './utils/useLogger';
 
 const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
@@ -9,6 +10,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const batchSize = 10; // מספר הרשומות המוצגות בכל פעם
+  const log = useLogger(); // שימוש ב-Hook לקבלת פונקציית הלוג
 
   // שליפת הלוגים מהיסטוריה בזמן אמת
   useEffect(() => {
@@ -103,6 +105,7 @@ const AdminDashboard = () => {
   };
 
   if (loading) {
+    log('Loading Dashboard');
     return <div>Loading Dashboard...</div>;
   }
 
