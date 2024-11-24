@@ -308,29 +308,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* מעקב בזמן אמת */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold mb-4">מעקב בזמן אמת</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr>
-                  <th className="px-4 py-2">תאריך ושעה</th>
-                  <th className="px-4 py-2">משתמש</th>
-                  <th className="px-4 py-2">פעולה נוכחית</th>
-                </tr>
-              </thead>
-              <tbody>
-                {realTimeLogs.map((log, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">{log.timestamp.toDate().toLocaleString()}</td>
-                    <td className="px-4 py-2">{log.user ? log.user.displayName : 'משתמש לא מזוהה'}</td>
-                    <td className="px-4 py-2">{log.currentAction}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
       </div>
 
       {selectedUser && (

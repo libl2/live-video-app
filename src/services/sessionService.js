@@ -94,14 +94,14 @@ class SessionManager {
     modalContent.innerHTML = `
       <h3>Multiple Sessions Detected</h3>
       <p>You have another active session. You will be logged out from this session.</p>
-      <p>Redirecting in <span id="countdown">3</span> seconds...</p>
+      <p>Redirecting in <span id="countdown">5</span> seconds...</p>
     `;
 
     modalDiv.appendChild(modalContent);
     document.body.appendChild(modalDiv);
 
     // טיימר לספירה לאחור
-    let count = 3;
+    let count = 5;
     const countdownElement = modalContent.querySelector('#countdown');
     const countdown = setInterval(() => {
       count--;
