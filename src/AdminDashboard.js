@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc, where } from 'firebase/firestore';
 import { db } from './firebase';
 import useLogger from './utils/useLogger';
+import { sessionManager } from './services/sessionService';
 
 const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
@@ -9,6 +10,8 @@ const AdminDashboard = () => {
   const [realTimeLogs, setRealTimeLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
   const batchSize = 10; // מספר הרשומות המוצגות בכל פעם
   const log = useLogger(); // שימוש ב-Hook לקבלת פונקציית הלוג
 
@@ -44,6 +47,16 @@ const AdminDashboard = () => {
     return () => unsubscribeLogs();
   }, []);
 
+  // פונקציה לניתוק משתמש מסוים
+  const disconnectUser = async (userId) => {
+    try {
+      await sessionManager.forceLogoutUser(userId); // New method in `SessionManager`
+      log('Admin forced user disconnect', { userId });
+    } catch (error) {
+      console.error('Error disconnecting user:', error);
+    }
+  };
+
   // שליפת המעקב בזמן אמת
   useEffect(() => {
     const realTimeQuery = collection(db, 'onlineLogs');
@@ -66,6 +79,25 @@ const AdminDashboard = () => {
     });
 
     return () => unsubscribeRealTime();
+  }, []);
+
+  // מעקב אחר סשנים פעילים
+  useEffect(() => {
+    const activeSessionsQuery = query(
+      collection(db, 'users'),
+      where('sessionId', '!=', null)
+    );
+
+    const unsubscribeActiveSessions = onSnapshot(activeSessionsQuery, (snapshot) => {
+      const sessions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        lastActiveFormatted: doc.data().lastActive?.toDate().toLocaleString()
+      }));
+      setActiveSessions(sessions);
+    });
+
+    return () => unsubscribeActiveSessions();
   }, []);
 
   // פונקציה לטעינת רשומות נוספות
@@ -111,13 +143,61 @@ const AdminDashboard = () => {
 
   return (
     <div className="dashboard">
-      <h2>Admin Dashboard</h2>
+      <h2>לוח הבקרה</h2>
 
       <div className="cards-container">
         <div className="card">
-          <h3>כרטיס מידע 1</h3>
-          {/* כאן תוסיף תוכן מידע נוסף */}
+        {/* כרטיסיית סשנים פעילים */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">סשנים פעילים</h3>
+              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                {activeSessions.length} משתמשים פעילים
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="table-header">משתמש</th>
+                    <th className="table-header">סטטוס</th>
+                    <th className="table-header">פעילות אחרונה</th>
+                    <th className="table-header">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {activeSessions.map((session) => (
+                    <tr key={session.id} className="hover:bg-gray-50">
+                      <td className="table-cell">{session.displayName}</td>
+                      <td className="table-cell">
+                        <span className="status-badge-active">
+                          פעיל
+                        </span>
+                      </td>
+                      <td className="table-cell">{session.lastActiveFormatted}</td>
+                      <td className="table-cell">
+                        <button
+                          className="button button-secondary" 
+                          onClick={() => setSelectedUser(session)}
+                        >
+                          פרטים
+                        </button>
+                        <button 
+                          className="button button-secondary"
+                          onClick={() => disconnectUser(session.id)}
+                        >
+                          נתק
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
+      </div>
 
         <div className="card">
           <h3>כרטיס מידע 2</h3>
