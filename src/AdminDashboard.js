@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, onSnapshot, getDocs, doc, getDoc, where, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import useLogger from './utils/useLogger';
 import { sessionManager } from './services/sessionService';
+import { Modal, Button } from "react-bootstrap";
 
 const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
@@ -136,10 +137,90 @@ const AdminDashboard = () => {
     }
   };
 
+  // פונקציה לעדכון הרשאות סשן מרובה
+  const toggleMultipleSessions = async (userId, currentValue) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        allowMultipleSessions: !currentValue
+      });
+      log('Admin updated user multiple sessions permission', { 
+        userId, 
+        newValue: !currentValue 
+      });
+    } catch (error) {
+      console.error('Error updating user permissions:', error);
+    }
+  };
+
+  const UserDetailsModal = ({ user, onClose }) => {
+    if (!user) return null;
+  
+    return (
+      <Modal show={!!user} onHide={onClose} centered dir="rtl">
+        <Modal.Header closeButton>
+          <Modal.Title>פרטי משתמש: {user.displayName}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="row mb-3">
+            <div className="col">
+              <strong>אימייל:</strong> {user.email}
+            </div>
+            <div className="col">
+              <strong>סטטוס:</strong>{" "}
+              {user.sessionId ? (
+                <span className="text-success">מחובר</span>
+              ) : (
+                <span className="text-danger">מנותק</span>
+              )}
+            </div>
+          </div>
+          <div className="row mb-3">
+            <div className="col">
+              <strong>מכשיר אחרון:</strong>{" "}
+              {user.deviceInfo?.userAgent || "לא ידוע"}
+            </div>
+            <div className="col">
+              <strong>פעילות אחרונה:</strong> {user.lastActiveFormatted}
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant={user.allowMultipleSessions ? "warning" : "primary"}
+            onClick={() =>
+              toggleMultipleSessions(user.id, user.allowMultipleSessions)
+            }
+          >
+            {user.allowMultipleSessions
+              ? "בטל הרשאת סשנים מרובים"
+              : "אפשר סשנים מרובים"}
+          </Button>
+          {user.sessionId && (
+            <Button variant="danger" onClick={() => disconnectUser(user.id)}>
+              נתק משתמש
+            </Button>
+          )}
+          <Button variant="secondary" onClick={onClose}>
+            סגור
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    );
+  };
+
   if (loading) {
     log('Loading Dashboard');
     return <div>Loading Dashboard...</div>;
   }
+
+  {/* מודל פרטי משתמש */}
+  {selectedUser && (
+    <UserDetailsModal 
+      user={selectedUser} 
+      onClose={() => setSelectedUser(null)}
+    />
+  )}
 
   return (
     <div className="dashboard">
