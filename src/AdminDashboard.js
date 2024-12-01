@@ -15,7 +15,6 @@ const AdminDashboard = () => {
   const [activeSessions, setActiveSessions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const batchSize = 10; // מספר הרשומות המוצגות בכל פעם
   const log = useLogger(); // שימוש ב-Hook לקבלת פונקציית הלוג
 
@@ -164,24 +163,9 @@ const AdminDashboard = () => {
   
     // שיטה 2: שימוש באופרטור השרשור האופציונלי (?.)
     return (
-      /*<Modal show={show} onHide={onHide} centered>
-        <Modal.Header>
-          <Modal.Title>פרטי משתמש</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {/* שימוש ב-?. למניעת שגיאות *///}
-        /*  אימייל: {user?.email || 'אין אימייל'}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>
-            סגור
-          </Button>
-        </Modal.Footer>
-      </Modal>*/
-
       <Modal show={show} onHide={onHide} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="text-end">פרטי משתמש: {user.displayName}</Modal.Title>
+        <Modal.Header>
+          <Modal.Title className="text-end">פרטי משתמש:<h7 className="text-success"> {user.displayName} </h7></Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-end">
           <div className="row mb-3">
@@ -220,85 +204,11 @@ const AdminDashboard = () => {
     );
   };
   
-
-  const UserDetailsModal = ({ user, onClose }) => {
-    //if (!user) return null;
-    console.log('פונקציה', user)
-  
-    return (
-      <Modal show={true} onHide={onClose} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="text-end">פרטי משתמש: {user.displayName}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="text-end">
-          <div className="row mb-3">
-            <div className="col">
-              <strong>אימייל:</strong> {user.email}
-            </div>
-            <div className="col">
-              <strong>סטטוס:</strong>{" "}
-              {user.sessionId ? (
-                <span className="text-success">מחובר</span>
-              ) : (
-                <span className="text-danger">מנותק</span>
-              )}
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer className="d-flex justify-content-end">
-          <Button
-            variant={user.allowMultipleSessions ? "warning" : "primary"}
-            onClick={() => toggleMultipleSessions(user.id, user.allowMultipleSessions)}
-          >
-            {user.allowMultipleSessions
-              ? "בטל הרשאת סשנים מרובים"
-              : "אפשר סשנים מרובים"}
-          </Button>
-          {user.sessionId && (
-            <Button variant="danger" onClick={() => disconnectUser(user.id)}>
-              נתק משתמש
-            </Button>
-          )}
-          <Button variant="secondary" onClick={onClose}>
-            סגור
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    );
-  };
-
-  /*const UserDetailsModal = ({ user, onClose }) => {
-    if (!user) return null;
-  
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 1000 }}>
-        <div style={{ margin: '100px auto', padding: '20px', background: '#fff', width: '50%' }}>
-          <h1>פרטי משתמש</h1>
-          <p>שם: {user.displayName}</p>
-          <button onClick={onClose}>סגור</button>
-        </div>
-      </div>
-    );
-  };*/
-  
   if (loading) {
     log('Loading Dashboard');
     return <div>Loading Dashboard...</div>;
   }
-
-  {/* מודל פרטי משתמש */}
-  console.log('יוזר',selectedUser);
-  {selectedUser && (
-    <UserDetailsModal 
-      user={selectedUser}
-      onClose={() => {
-        console.log("Modal closed", selectedUser);
-        //setSelectedUser(null);
-      }}
-    />
-  )}
   
-
   return (
     <div className="dashboard">
       <h2>לוח הבקרה</h2>
@@ -335,20 +245,14 @@ const AdminDashboard = () => {
                       </td>
                       <td className="table-cell">{session.lastActiveFormatted}</td>
                       <td className="table-cell">
-                        <button
-                          className="button button-secondary" 
-                          onClick={() => {
-                            setSelectedUser(session);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                          פרטים
-                        </button>
 
-                        <button onClick={() => {
+                        <button
+                         className="button button-secondary"
+                         onClick={() => {
                           setSelectedUser(session);  // הוסף את זה כדי להגדיר את המשתמש
                           setShowModal(true);        // ואז פתח את המודל
-                        }}>פתח מודל</button>
+                        }}>פרטים</button>
+
                         <SimpleModal 
                           show={showModal} 
                           onHide={() => setShowModal(false)} 
@@ -356,7 +260,7 @@ const AdminDashboard = () => {
                         />
                         
                         <button 
-                          className="button button-secondary"
+                          className="button button-danger"
                           onClick={() => disconnectUser(session.id)}
                         >
                           נתק
