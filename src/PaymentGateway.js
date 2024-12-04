@@ -1,7 +1,7 @@
 import React from 'react';
 import { db } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { logAction } from './logging';
+import { logAction } from './utils/logging';
 
 const PaymentGateway = ({ user, userData }) => {
   const handlePayment = async () => {

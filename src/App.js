@@ -11,6 +11,9 @@ import { logAction, logRealTimeAction } from './utils/logging';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { sessionManager } from './services/sessionService'; // הוסף את זה
+import EventManagement from './EventManagement';
+import ViewershipDashboard from './ViewershipDashboard';
+import PaymentGateway from './PaymentGateway';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -152,6 +155,40 @@ useEffect(() => {
                 <Navigate to="/" replace />
               ) : (
                 <div>Access Denied</div>
+              )
+            }
+          />
+          <Route
+            path="/event-management"
+            element={
+              user && isAdmin ? (
+                <EventManagement user={userData} />
+              ) : !user ? (
+                <Navigate to="/" replace />
+              ) : (
+                <div>Access Denied</div>
+              )
+            }
+          />
+          <Route
+            path="/viewership-dashboard"
+            element={
+              user && isAdmin ? (
+                <ViewershipDashboard user={userData} />
+              ) : !user ? (
+                <Navigate to="/" replace />
+              ) : (
+                <div>Access Denied</div>
+              )
+            }
+          />
+          <Route
+            path="/payment/:eventId"
+            element={
+              user ? (
+                <PaymentGateway user={user} />
+              ) : (
+                <Navigate to="/" replace />
               )
             }
           />

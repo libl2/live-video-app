@@ -1,7 +1,30 @@
+:root {
+  /* פלטת צבעים מודרנית */
+  --primary-color: #3498db;     /* כחול מואר */
+  --secondary-color: #2ecc71;   /* ירוק */
+  --accent-color: #e74c3c;      /* אדום */
+  --background-color: #f4f6f7;  /* אפור בהיר */
+  --text-color: #2c3e50;        /* כחול כהה כמעט שחור */
+  --white: #ffffff;
+
+  /* הגדרות גופן */
+  --font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-family);
+}
+
 body {
   direction: rtl;
   text-align: right;
   font-family: Arial, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.6;
 }
 
 .App {
@@ -117,4 +140,87 @@ tr:hover {
 
 .button-secondary:hover {
   background-color: #565e64;
+}
+
+/* סגנון כפתורים אחיד */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: var(--white);
+}
+
+.btn-secondary:hover {
+  background-color: #27ae60;
+}
+
+/* סגנון קישורים */
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--accent-color);
+}
+
+/* אנימציות */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* סגנון כותרות */
+h1, h2, h3 {
+  color: var(--text-color);
+  margin-bottom: 15px;
+}
+
+/* סגנון טפסים */
+.form-control {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
 }
