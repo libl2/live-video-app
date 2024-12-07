@@ -23,62 +23,107 @@ function App() {
   const [isApproved, setIsApproved] = useState(null);
   const [sessionId, setSessionId] = useState(null);
 
-  // App.js - עדכון בתוך useEffect
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      if (authUser) {
+        setUser(authUser);
 
-useEffect(() => {
-  const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
-    if (authUser) {
-      setUser(authUser);
+        // יצירת משתמש חדש אם לא קיים
+        await createUserIfNotExists(authUser);
 
-      // יצירת משתמש חדש אם לא קיים
-      await createUserIfNotExists(authUser);
+        // יצירת sessionId חדש
+        const newSessionId = uuidv4();
+        setSessionId(newSessionId);
 
-      // יצירת sessionId חדש
-      const newSessionId = uuidv4();
-      setSessionId(newSessionId);
+        // אתחול מנגנון הסשן
+        await sessionManager.initSession(authUser.uid, newSessionId);
 
-      // אתחול מנגנון הסשן
-      await sessionManager.initSession(authUser.uid, newSessionId);
+        // משיכת פרטי המשתמש
+        const userDocRef = doc(db, 'users', authUser.uid);
+        const userDoc = await getDoc(userDocRef);
 
-      // משיכת פרטי המשתמש
-      const userDocRef = doc(db, 'users', authUser.uid);
-      const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserData(userData);
+          setIsAdmin(userData.isAdmin || false);
+          setIsApproved(userData.isApproved || false);
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setUserData(userData);
-        setIsAdmin(userData.isAdmin || false);
-        setIsApproved(userData.isApproved || false);
-
-        if (userData.isApproved) {
-          await logAction(authUser.uid, 'Login successful', { email: authUser.email });
-        } else {
-          await logAction(authUser.uid, 'User not approved');
+          if (userData.isApproved) {
+            await logAction(authUser.uid, 'Login successful', { email: authUser.email });
+          } else {
+            await logAction(authUser.uid, 'User not approved');
+          }
         }
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+        setIsApproved(false);
+        sessionManager.cleanup();
+        await logAction(null, 'Login failed');
       }
-    } else {
-      setUser(null);
-      setIsAdmin(false);
-      setIsApproved(false);
+      setLoading(false);
+    });
+
+    const checkForceLogout = async () => {
+      if (!auth.currentUser) return;
+
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
+      // בודק אם יש דגל של ניתוק מיידי
+      if (userData?.forceLogoutImmediate || userData?.forceLogout) {
+        await sessionManager.forceLogout();
+      }
+    };
+
+    // בדיקה כל 5 שניות
+    const interval = setInterval(checkForceLogout, 5000);
+    
+    // בדיקה ראשונית מיד
+    checkForceLogout();
+
+    // עדכון lastActive ומיקום נוכחי כל 30 שניות
+    const activeInterval = setInterval(() => {
+      if (user) {
+        const currentPath = window.location.pathname;
+        // מציאת שם הדף הנוכחי
+        let pageName = 'Unknown Page';
+        
+        if (currentPath === '/') {
+          pageName = 'דף הבית';
+        } else if (currentPath === '/admin') {
+          pageName = 'דשבורד ניהול';
+        } else if (currentPath.startsWith('/room/')) {
+          const roomId = currentPath.split('/')[2];
+          pageName = `חדר שידור ${roomId}`;
+        } else if (currentPath === '/rooms') {
+          pageName = 'רשימת חדרים';
+        } else if (currentPath === '/profile') {
+          pageName = 'פרופיל משתמש';
+        } else if (currentPath === '/live-video') {
+          pageName = 'שידור חי';
+        }
+
+        sessionManager.updateLastActive(pageName, isApproved);
+      }
+    }, 30000);
+
+    // מנקה סשנים לא פעילים כל 2 דקות
+    const cleanupInterval = setInterval(() => {
+      if (user?.isAdmin) {
+        sessionManager.cleanupInactiveSessions();
+      }
+    }, 120000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      clearInterval(activeInterval);
+      clearInterval(cleanupInterval);
       sessionManager.cleanup();
-      await logAction(null, 'Login failed');
-    }
-    setLoading(false);
-  });
-
-  // עדכון lastActive כל דקה
-  const activeInterval = setInterval(() => {
-    if (user) {
-      sessionManager.updateLastActive();
-    }
-  }, 60000);
-
-  return () => {
-    unsubscribe();
-    clearInterval(activeInterval);
-    sessionManager.cleanup();
-  };
-}, []);
+    };
+  }, []);
 
   const createUserIfNotExists = async (user) => {
     const userDocRef = doc(db, 'users', user.uid);

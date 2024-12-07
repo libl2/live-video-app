@@ -1,5 +1,5 @@
 // services/sessionService.js
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, serverTimestamp, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 
@@ -15,29 +15,32 @@ class SessionManager {
       this.unsubscribe();
     }
 
-    // בדיקה האם המשתמש פטור ממגבלת סשן יחיד
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    const userData = userDoc.data();
-
-    if (userData?.allowMultipleSessions) {
-      console.log('User is allowed multiple sessions');
-      return;
-    }
+    // בדיקה ראשונית אם המשתמש נותק בכוח
+    await this.checkForceLogout();
 
     this.currentSessionId = sessionId;
     const browserTabId = this.generateTabId();
 
     // עדכון הסשן הנוכחי
-    await updateDoc(userDocRef, {
-      sessionId,
-      lastActive: new Date(),
-      browserTabId,
-      deviceInfo: {
-        userAgent: navigator.userAgent,
-        timestamp: new Date()
-      }
-    });
+    const userDocRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userDocRef);
+    const userData = userDoc.data();
+
+    // בדיקה האם המשתמש פטור ממגבלת סשן יחיד
+    if (!userData?.allowMultipleSessions) {
+      await updateDoc(userDocRef, {
+        sessionId,
+        lastActive: serverTimestamp(),
+        lastActiveTimestamp: Date.now(),
+        browserTabId,
+        status: 'active',
+        currentPath: window.location.pathname,
+        deviceInfo: {
+          userAgent: navigator.userAgent,
+          timestamp: Date.now()
+        }
+      });
+    }
 
     // האזנה לשינויים בסשן
     this.unsubscribe = onSnapshot(userDocRef, (snapshot) => {
@@ -45,7 +48,8 @@ class SessionManager {
       
       if (data.sessionId && 
           data.sessionId !== this.currentSessionId && 
-          !this.isForceLogoutActive) {
+          !this.isForceLogoutActive &&
+          !userData?.allowMultipleSessions) {
         this.handleSessionConflict(data.browserTabId === browserTabId);
       }
     });
@@ -123,7 +127,7 @@ class SessionManager {
     window.location.href = '/';
   }
 
-  async updateLastActive() {
+  async updateLastActive(currentPath, isApproved = true) {
     if (!auth.currentUser) return;
 
     const userDocRef = doc(db, 'users', auth.currentUser.uid);
@@ -132,9 +136,124 @@ class SessionManager {
 
     if (userData?.allowMultipleSessions) return;
 
+    // בדיקה אם המשתמש בדף הבית ולא מאושר - משמע בדף אישור משתמש
+    const actualPath = currentPath === '/' && !isApproved ? 'אישור משתמש' : currentPath;
+
     await updateDoc(userDocRef, {
-      lastActive: new Date()
+      lastActive: serverTimestamp(),
+      currentPath: actualPath,
+      lastActiveTimestamp: Date.now(),
+      status: 'active',
+      deviceInfo: {
+        userAgent: navigator.userAgent,
+        lastUpdate: Date.now()
+      }
     });
+  }
+
+  async cleanupInactiveSessions() {
+    try {
+      const timeoutThreshold = 5 * 60 * 1000; // 5 דקות
+      const currentTime = Date.now();
+      
+      const usersRef = collection(db, 'users');
+      const activeSessionsQuery = query(
+        usersRef,
+        where('sessionId', '!=', null)
+      );
+
+      const snapshot = await getDocs(activeSessionsQuery);
+      
+      snapshot.docs.forEach(async (doc) => {
+        const userData = doc.data();
+        if (userData.lastActiveTimestamp && 
+            (currentTime - userData.lastActiveTimestamp) > timeoutThreshold) {
+          // מנקה את הסשן אם לא היה פעיל יותר מ-5 דקות
+          await updateDoc(doc.ref, {
+            sessionId: null,
+            status: 'inactive',
+            currentPath: null
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error cleaning up inactive sessions:', error);
+    }
+  }
+
+  async forceLogoutUser(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
+      // שמירת ה-sessionId הישן לפני העדכון
+      const oldSessionId = userData.sessionId;
+
+      // מעדכן את הסטטוס של המשתמש
+      await updateDoc(userRef, {
+        sessionId: null,
+        status: 'inactive',
+        currentPath: null,
+        lastActive: serverTimestamp(),
+        forceLogout: true,  // דגל חדש שמסמן שזה ניתוק בכוח
+        forceLogoutTimestamp: Date.now()  // זמן הניתוק
+      });
+
+      // מוסיף רשומת לוג על הניתוק
+      const logRef = collection(db, 'logs');
+      await addDoc(logRef, {
+        type: 'force_logout',
+        userId,
+        oldSessionId,
+        timestamp: serverTimestamp(),
+        adminAction: true
+      });
+
+      // אם יש למשתמש סשן פעיל, מאלץ אותו להתנתק מיד
+      if (oldSessionId) {
+        const usersRef = collection(db, 'users');
+        const activeSessionQuery = query(
+          usersRef,
+          where('sessionId', '==', oldSessionId)
+        );
+        
+        const snapshot = await getDocs(activeSessionQuery);
+        if (!snapshot.empty) {
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data();
+          
+          // מעדכן את הדגל שיגרום לניתוק מיידי בצד הלקוח
+          await updateDoc(userDoc.ref, {
+            forceLogoutImmediate: true,
+            forceLogoutTimestamp: Date.now()
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in force logout:', error);
+      throw error;
+    }
+  }
+
+  async checkForceLogout() {
+    if (!auth.currentUser) return;
+
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    const userDoc = await getDoc(userRef);
+    const userData = userDoc.data();
+
+    if (userData?.forceLogout) {
+      // מנקה את דגל הניתוק בכוח
+      await updateDoc(userRef, {
+        forceLogout: false,
+        forceLogoutTimestamp: null
+      });
+
+      // מנתק את המשתמש
+      await auth.signOut();
+      window.location.href = '/';
+    }
   }
 
   cleanup() {
