@@ -6,12 +6,12 @@ const UserApproval = () => {
   const log = useLogger(); // שימוש ב-Hook לקבלת פונקציית הלוג
 
   useEffect(() => {
+    // דיווח על מיקום נוכחי
+    sessionManager.updateLastActive('אישור משתמש', false);
+
     // רישום לוג כאשר דף ה-UserApproval נטען
     log('User approval page loaded', { status: 'waiting for approval' });
     
-    // עדכון המיקום הנוכחי
-    sessionManager.updateLastActive('אישור משתמש');
-
     // עדכון תקופתי של המיקום
     const interval = setInterval(() => {
       sessionManager.updateLastActive('אישור משתמש');

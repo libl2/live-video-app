@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { logAction } from './utils/logging';
+import { sessionManager } from './services/sessionService';
 
 const ViewershipDashboard = ({ user }) => {
   const [viewers, setViewers] = useState([]);
   const [liveEvents, setLiveEvents] = useState([]);
 
   useEffect(() => {
+    // דיווח על מיקום נוכחי
+    sessionManager.updateLastActive('דשבורד צפייה', true);
+
     // וודא שרק מנהלים יכולים לראות את הדף
     if (!user.isAdmin) {
       alert('גישה מותרת למנהלים בלבד');

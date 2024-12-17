@@ -19,8 +19,10 @@ const AdminDashboard = () => {
   const log = useLogger();  
   const batchSize = 10;
 
-  // שליפת הלוגים מהיסטוריה בזמן אמת
   useEffect(() => {
+    // דיווח על מיקום נוכחי
+    sessionManager.updateLastActive('דשבורד ניהול', true);
+
     const logsQuery = query(
       collection(db, 'logs'),
       orderBy('timestamp', 'desc'),

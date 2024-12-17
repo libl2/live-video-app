@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { logAction } from './utils/logging';
+import { sessionManager } from './services/sessionService';
 
 const EventManagement = ({ user }) => {
   const [events, setEvents] = useState([]);
@@ -15,6 +16,9 @@ const EventManagement = ({ user }) => {
   });
 
   useEffect(() => {
+    // דיווח על מיקום נוכחי
+    sessionManager.updateLastActive('ניהול אירועים', true);
+
     // וודא שרק מנהלים יכולים לראות את הדף
     if (!user.isAdmin) {
       alert('גישה מותרת למנהלים בלבד');

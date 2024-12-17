@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { db } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { logAction } from './utils/logging';
+import { sessionManager } from './services/sessionService';
 
 const PaymentGateway = ({ user, userData }) => {
+  useEffect(() => {
+    // דיווח על מיקום נוכחי
+    sessionManager.updateLastActive('שער תשלום', true);
+  }, []);
+
   const handlePayment = async () => {
     // Implement your payment logic here
     // For demonstration, we'll just update the user's subscription status
