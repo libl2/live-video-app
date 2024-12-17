@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, startAfter, getDocs, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, startAfter, getDocs, doc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Modal, Button } from 'react-bootstrap';
 import useLogger from './utils/useLogger';
@@ -16,6 +16,8 @@ const AdminDashboard = () => {
   const [lastLogDoc, setLastLogDoc] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [approvalRequests, setApprovalRequests] = useState([]);
   const log = useLogger();  
   const batchSize = 10;
 
@@ -51,6 +53,42 @@ const AdminDashboard = () => {
     });
 
     return () => unsubscribeLogs();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersQuery = query(collection(db, 'users'));
+        const usersSnapshot = await getDocs(usersQuery);
+        const usersList = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setUsers(usersList);
+      } catch (error) {
+        log.error('Error fetching users', error);
+      }
+    };
+
+    const fetchApprovalRequests = async () => {
+      try {
+        const requestsQuery = query(
+          collection(db, 'approvalRequests'), 
+          where('status', '==', 'pending')
+        );
+        const requestsSnapshot = await getDocs(requestsQuery);
+        const requestsList = requestsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setApprovalRequests(requestsList);
+      } catch (error) {
+        log.error('Error fetching approval requests', error);
+      }
+    };
+
+    fetchUsers();
+    fetchApprovalRequests();
   }, []);
 
   // פונקציה לניתוק משתמש מסוים
@@ -128,6 +166,59 @@ const AdminDashboard = () => {
 
     return () => unsubscribeActiveSessions();
   }, []);
+
+  const handleUserApproval = async (userId, approve) => {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      await updateDoc(userDocRef, {
+        isApproved: approve,
+        approvedAt: serverTimestamp()
+      });
+
+      // Update approval request status
+      const requestDocRef = doc(db, 'approvalRequests', userId);
+      await updateDoc(requestDocRef, {
+        status: approve ? 'approved' : 'rejected'
+      });
+
+      // Refresh users and requests
+      const fetchUsers = async () => {
+        try {
+          const usersQuery = query(collection(db, 'users'));
+          const usersSnapshot = await getDocs(usersQuery);
+          const usersList = usersSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setUsers(usersList);
+        } catch (error) {
+          log.error('Error fetching users', error);
+        }
+      };
+
+      const fetchApprovalRequests = async () => {
+        try {
+          const requestsQuery = query(
+            collection(db, 'approvalRequests'), 
+            where('status', '==', 'pending')
+          );
+          const requestsSnapshot = await getDocs(requestsQuery);
+          const requestsList = requestsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setApprovalRequests(requestsList);
+        } catch (error) {
+          log.error('Error fetching approval requests', error);
+        }
+      };
+
+      fetchUsers();
+      fetchApprovalRequests();
+    } catch (error) {
+      log.error('Error updating user approval', error);
+    }
+  };
 
   // פונקציה לטעינת רשומות נוספות
   const loadMoreLogs = async () => {
@@ -372,6 +463,80 @@ const AdminDashboard = () => {
                   <td>{log.timestamp.toDate().toLocaleString()}</td>
                   <td>{log.user ? log.user.displayName : 'משתמש לא מזוהה'}</td>
                   <td>{log.currentAction}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <h3>ניהול משתמשים</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>משתמש</th>
+                <th>אימייל</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user, index) => (
+                <tr key={index}>
+                  <td>{user.displayName}</td>
+                  <td>{user.email}</td>
+                  <td>{user.isApproved ? 'מאושר' : 'לא מאושר'}</td>
+                  <td>
+                    <button
+                      className="button button-primary"
+                      onClick={() => handleUserApproval(user.id, true)}
+                    >
+                      אשר
+                    </button>
+                    <button
+                      className="button button-danger"
+                      onClick={() => handleUserApproval(user.id, false)}
+                    >
+                      דחה
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <h3>בקשות אישור</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>משתמש</th>
+                <th>אימייל</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approvalRequests.map((request, index) => (
+                <tr key={index}>
+                  <td>{request.displayName}</td>
+                  <td>{request.email}</td>
+                  <td>{request.status}</td>
+                  <td>
+                    <button
+                      className="button button-primary"
+                      onClick={() => handleUserApproval(request.id, true)}
+                    >
+                      אשר
+                    </button>
+                    <button
+                      className="button button-danger"
+                      onClick={() => handleUserApproval(request.id, false)}
+                    >
+                      דחה
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

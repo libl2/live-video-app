@@ -22,6 +22,8 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isApproved, setIsApproved] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+  const [authCheckInterval, setAuthCheckInterval] = useState(null);
+  const [authRequestSent, setAuthRequestSent] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
@@ -163,6 +165,59 @@ function App() {
     }
   };
 
+  const checkUserAuthorization = async () => {
+    if (!user || isApproved) return;
+
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setIsApproved(userData.isApproved || false);
+        
+        if (userData.isApproved) {
+          // Stop checking if user is now approved
+          clearInterval(authCheckInterval);
+          setAuthCheckInterval(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking user authorization:", error);
+    }
+  };
+
+  const sendAdminApprovalRequest = async () => {
+    if (!user) return;
+
+    try {
+      const approvalRequestRef = doc(db, 'approvalRequests', user.uid);
+      await setDoc(approvalRequestRef, {
+        userId: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        requestTimestamp: serverTimestamp(),
+        status: 'pending'
+      });
+
+      setAuthRequestSent(true);
+      logAction(user.uid, 'sent_approval_request');
+    } catch (error) {
+      console.error("Error sending approval request:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user && !isApproved && !authCheckInterval) {
+      const interval = setInterval(checkUserAuthorization, 10000); // Check every 10 seconds
+      setAuthCheckInterval(interval);
+
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }
+  }, [user, isApproved]);
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -181,7 +236,21 @@ function App() {
               ) : !user ? (
                 <Login />
               ) : !isApproved ? (
-                <UserApproval />
+                <div>
+                  <UserApproval />
+                  {!isApproved && (
+                    <div className="approval-request-container">
+                      <p>You do not have access to this application. Request approval from an admin.</p>
+                      <button 
+                        onClick={sendAdminApprovalRequest} 
+                        disabled={authRequestSent}
+                        className="btn btn-primary"
+                      >
+                        {authRequestSent ? 'Request Sent' : 'Request Admin Approval'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <LiveVideo user={user} userData={userData} onLogout={handleLogout} />
               )
