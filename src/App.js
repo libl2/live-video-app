@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import Login from './Login';
+import Login from './login';
 import LiveVideo from './LiveVideo';
 import Navbar from './Navbar';
 import UserApproval from './UserApproval';
